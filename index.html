@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
+    <!-- Liens pour la PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#00e5ff">
+    <link rel="apple-touch-icon" href="icon88.png">
+    
+    <title>Geek Security - Admin & App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-dark: #121212;
+            --bg-card: #222222;
+            --accent-cyan: #00e5ff;
+            --accent-pink: #ff4081;
+            --text-main: #ffffff;
+            --text-muted: #aaaaaa;
+        }
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+        }
+        
+        /* Conteneur App */
+        #app-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* Conteneur Admin */
+        #admin-container {
+            display: none;
+            width: 100%;
+            height: 100%;
+            background-color: #1e1e2f;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+        @media (min-width: 768px) {
+            #admin-container {
+                flex-direction: row;
+                overflow: hidden;
+            }
+        }
+
+        .screen {
+            display: none;
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            padding-bottom: 90px;
+            padding-top: env(safe-area-inset-top, 20px);
+        }
+        .screen.active {
+            display: block;
+        }
+        
+        .admin-view {
+            display: none;
+            height: 100%;
+            flex-direction: column;
+        }
+        .admin-view.active {
+            display: flex;
+        }
+
+        /* En-têtes Mobile */
+        .app-header {
+            text-align: center;
+            padding: 10px 0 20px;
+        }
+        .app-header h1 {
+            color: var(--accent-cyan);
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .app-header h2 {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        /* Navigation Mobile */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background-color: var(--bg-card);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            border-top: 1px solid #333;
+            z-index: 50;
+            padding-bottom: env(safe-area-inset-bottom, 15px);
+            height: calc(65px + env(safe-area-inset-bottom, 0px));
+        }
+        .nav-item {
+            color: var(--text-muted);
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: color 0.3s;
+            padding: 15px;
+            flex: 1;
+            text-align: center;
+        }
+        .nav-item.active {
+            color: var(--accent-cyan);
+        }
+
+        /* Éléments UI Mobile */
+        .shield-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 35vh;
+            position: relative;
+        }
+        .shield {
+            font-size: 8rem;
+            color: #0091ea;
+            text-shadow: 0 0 30px rgba(0, 145, 234, 0.6);
+        }
+        .list-item {
+            background-color: var(--bg-card);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .list-item i {
+            font-size: 1.5rem;
+            color: var(--accent-cyan);
+            width: 30px;
+            text-align: center;
+        }
+
+        /* Switcher Mode */
+        .mode-switcher {
+            position: fixed;
+            top: env(safe-area-inset-top, 20px);
+            right: 15px;
+            background: rgba(0, 229, 255, 0.15);
+            backdrop-filter: blur(5px);
+            color: var(--accent-cyan);
+            border: 1px solid var(--accent-cyan);
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 100;
+        }
+
+        /* Scrollbar custom pour la table Admin */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #151521; 
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #3f3f5a; 
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-cyan); 
+        }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        
+        /* Toggle Switch Checkbox CSS */
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: var(--accent-cyan);
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: var(--accent-cyan);
+        }
+    </style>
+</head>
+<body>
+
+    <button class="mode-switcher" onclick="toggleMode()">Mode Admin</button>
+
+    <!-- UI APPLICATION MOBILE COMPLÈTE -->
+    <div id="app-container">
+        <!-- Écran 1: Scanner -->
+        <div id="screen-malware" class="screen active">
+            <div class="app-header mt-8">
+                <h1>Malware Removal</h1>
+                <h2>Ransomware Protection</h2>
+                <p class="text-xs text-[var(--accent-cyan)] mt-1">Geek Security</p>
+            </div>
+            <div class="shield-container mt-4">
+                <i class="fa-solid fa-shield-halved shield"></i>
+                <div class="absolute w-full h-1 bg-[var(--accent-cyan)] top-1/2 opacity-50 shadow-[0_0_15px_#00e5ff]"></div>
+            </div>
+            <div class="text-center mt-12">
+                <h3 class="text-4xl font-bold">88%</h3>
+                <p class="text-[var(--text-muted)] text-lg mt-2">Scanning....</p>
+            </div>
+        </div>
+
+        <!-- Écran 2: WiFi -->
+        <div id="screen-wifi" class="screen">
+            <div class="app-header mt-8">
+                <h1>WiFi Security</h1>
+                <h2>WiFi Thief Detector</h2>
+            </div>
+            <div class="bg-[var(--bg-card)] rounded-2xl p-6 mt-2 text-center relative overflow-hidden">
+                <p class="text-base mb-4">'KSStudios'</p>
+                <div class="w-28 h-28 rounded-full border-4 border-[var(--accent-cyan)] border-t-gray-600 flex items-center justify-center mx-auto mb-6">
+                    <span class="text-3xl font-bold">82%</span>
+                </div>
+                <button class="bg-[var(--accent-pink)] text-white px-8 py-3 rounded-full font-bold text-sm w-full max-w-[200px]">BOOST NETWORK</button>
+            </div>
+            <div class="mt-6 space-y-3">
+                <div class="list-item"><i class="fa-solid fa-user-secret"></i> <span class="font-medium">Who Steals My WiFi?</span></div>
+                <div class="list-item"><i class="fa-solid fa-wifi"></i> <span class="font-medium">WiFi Warden</span></div>
+                <div class="list-item"><i class="fa-solid fa-signal"></i> <span class="font-medium">WiFi Signal Strength</span></div>
+            </div>
+        </div>
+
+        <!-- Écran 3: Système -->
+        <div id="screen-system" class="screen">
+            <div class="app-header mt-8">
+                <h1>System Check</h1>
+                <h2>Quick Fix Problems</h2>
+            </div>
+            <div class="flex justify-center gap-6 my-10">
+                <div class="flex flex-col items-center gap-3">
+                    <div class="w-16 h-16 rounded-full bg-[var(--bg-card)] flex items-center justify-center text-xl shadow-lg"><i class="fa-solid fa-broom text-gray-400"></i></div>
+                    <span class="text-[11px] text-gray-300">Junk Cleaner</span>
+                </div>
+                <div class="flex flex-col items-center gap-3 -mt-4">
+                    <div class="w-24 h-24 rounded-full bg-[#1a1a1a] border-2 border-[var(--accent-cyan)] flex items-center justify-center text-3xl shadow-[0_0_15px_rgba(0,229,255,0.3)]"><i class="fa-solid fa-wrench text-[var(--accent-cyan)]"></i></div>
+                    <span class="text-xs font-bold text-white">Fix Problems</span>
+                </div>
+                <div class="flex flex-col items-center gap-3">
+                    <div class="w-16 h-16 rounded-full bg-[var(--bg-card)] flex items-center justify-center text-xl shadow-lg"><i class="fa-solid fa-snowflake text-gray-400"></i></div>
+                    <span class="text-[11px] text-gray-300">Task killer</span>
+                </div>
+            </div>
+            <div class="space-y-3">
+                <div class="list-item py-4"><i class="fa-solid fa-screwdriver-wrench"></i> <span>Mobile Diagnostics</span> <i class="fa-solid fa-chevron-right ml-auto text-gray-600 text-sm"></i></div>
+                <div class="list-item py-4"><i class="fa-solid fa-file-zipper"></i> <span>System Cache</span> <i class="fa-solid fa-chevron-right ml-auto text-gray-600 text-sm"></i></div>
+                <div class="list-item py-4"><i class="fa-solid fa-user-shield"></i> <span>Privacy Analyzer</span> <i class="fa-solid fa-chevron-right ml-auto text-gray-600 text-sm"></i></div>
+            </div>
+        </div>
+
+        <!-- Écran 4: AdShield -->
+        <div id="screen-adshield" class="screen">
+            <div class="app-header mt-8">
+                <h1>AdShield</h1>
+                <h2>Pop-Up Ads Remover</h2>
+            </div>
+            <div class="flex gap-3 mt-4 overflow-x-auto pb-4 no-scrollbar">
+                <button class="bg-[var(--bg-card)] px-5 py-2 rounded-lg text-sm whitespace-nowrap">Recent</button>
+                <button class="bg-[var(--bg-card)] px-5 py-2 rounded-lg text-sm whitespace-nowrap">Last Hour</button>
+                <button class="bg-[var(--accent-cyan)] text-black px-5 py-2 rounded-lg text-sm font-bold whitespace-nowrap">All</button>
+            </div>
+            <div class="mt-4 space-y-3">
+                <div class="list-item p-4">
+                    <div class="w-12 h-12 bg-orange-500 rounded-lg flex items-center justify-center shrink-0"><i class="fa-solid fa-music text-white text-lg"></i></div>
+                    <div class="flex-1 overflow-hidden">
+                        <h4 class="text-base font-bold truncate">MY Music Player</h4>
+                        <p class="text-xs text-gray-400">com.mymusic.player</p>
+                        <p class="text-[10px] text-[var(--accent-cyan)] mt-1">Last Used: 5:28 PM</p>
+                    </div>
+                </div>
+                <div class="list-item p-4">
+                    <div class="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center shrink-0"><i class="fa-solid fa-lock text-white text-lg"></i></div>
+                    <div class="flex-1 overflow-hidden">
+                        <h4 class="text-base font-bold truncate">Device Services</h4>
+                        <p class="text-xs text-gray-400">com.deviceservices</p>
+                        <p class="text-[10px] text-[var(--accent-cyan)] mt-1">Last Used: 5:27 PM</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Barre de navigation mobile -->
+        <div class="bottom-nav">
+            <i class="fa-solid fa-shield-virus nav-item active" onclick="switchTab('malware', this)"></i>
+            <i class="fa-solid fa-wifi nav-item" onclick="switchTab('wifi', this)"></i>
+            <i class="fa-solid fa-wrench nav-item" onclick="switchTab('system', this)"></i>
+            <i class="fa-solid fa-ban nav-item" onclick="switchTab('adshield', this)"></i>
+        </div>
+    </div>
+
+    <!-- UI ADMINISTRATION -->
+    <div id="admin-container" class="text-white">
+        <!-- Sidebar Admin -->
+        <div class="w-full md:w-64 bg-[#151521] p-6 flex flex-col md:border-r border-gray-700">
+            <h2 class="text-2xl font-bold text-[var(--accent-cyan)] mb-6 md:mb-10">Geek Security Admin</h2>
+            <ul class="flex flex-row md:flex-col gap-4 overflow-x-auto md:overflow-visible pb-2 md:pb-0 text-sm md:text-base">
+                <li onclick="switchAdminView('dashboard', this)" class="admin-menu-item flex items-center gap-3 text-[var(--accent-cyan)] cursor-pointer whitespace-nowrap"><i class="fa-solid fa-chart-line"></i> Dashboard</li>
+                <li onclick="switchAdminView('subscribers', this)" class="admin-menu-item flex items-center gap-3 text-gray-400 hover:text-white cursor-pointer whitespace-nowrap"><i class="fa-solid fa-crown text-yellow-500"></i> Abonnés Pro (40€)</li>
+                <li onclick="switchAdminView('menaces', this)" class="admin-menu-item flex items-center gap-3 text-gray-400 hover:text-white cursor-pointer whitespace-nowrap"><i class="fa-solid fa-bug"></i> Menaces</li>
+                <li onclick="switchAdminView('support', this)" class="admin-menu-item flex items-center gap-3 text-gray-400 hover:text-white cursor-pointer whitespace-nowrap"><i class="fa-solid fa-headset text-red-500"></i> Support <span class="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full ml-1">50+</span></li>
+                <li onclick="switchAdminView('settings', this)" class="admin-menu-item flex items-center gap-3 text-gray-400 hover:text-white cursor-pointer whitespace-nowrap"><i class="fa-solid fa-gear"></i> Paramètres</li>
+            </ul>
+        </div>
+        
+        <!-- Contenu principal Admin -->
+        <div class="flex-1 bg-[#1e1e2f] flex flex-col overflow-hidden">
+            <!-- VUE : DASHBOARD -->
+            <div id="view-dashboard" class="admin-view active p-4 md:p-8 overflow-y-auto">
+                <h1 class="text-2xl md:text-3xl font-bold mb-6">Vue d'ensemble</h1>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-8">
+                    <div class="bg-[#27293d] p-5 rounded-xl border border-gray-700">
+                        <h3 class="text-gray-400 text-xs md:text-sm mb-2">Revenus Mensuels (Pro)</h3>
+                        <div class="text-2xl md:text-3xl font-bold text-green-400">16 880 €</div>
+                    </div>
+                    <div class="bg-[#27293d] p-5 rounded-xl border border-gray-700">
+                        <h3 class="text-gray-400 text-xs md:text-sm mb-2">Abonnés Pro Actifs</h3>
+                        <div class="text-2xl md:text-3xl font-bold text-[var(--accent-cyan)]">422</div>
+                    </div>
+                    <div class="bg-[#27293d] p-5 rounded-xl border border-gray-700">
+                        <h3 class="text-gray-400 text-xs md:text-sm mb-2">Menaces Bloquées</h3>
+                        <div class="text-2xl md:text-3xl font-bold text-red-500">8,304</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VUE : ABONNÉS PRO -->
+            <div id="view-subscribers" class="admin-view p-4 md:p-8 overflow-hidden">
+                <div class="flex justify-between items-end mb-6">
+                    <div>
+                        <h1 class="text-2xl md:text-3xl font-bold">Abonnés Premium</h1>
+                        <p class="text-gray-400 mt-1">Liste des 422 utilisateurs avec abonnement 40 € / mois</p>
+                    </div>
+                    <button class="bg-[var(--accent-cyan)] text-black px-4 py-2 rounded font-bold text-sm hidden md:block">Exporter CSV</button>
+                </div>
+                
+                <div class="bg-[#27293d] rounded-xl border border-gray-700 flex flex-col flex-1 overflow-hidden">
+                    <div class="overflow-x-auto overflow-y-auto custom-scrollbar h-full">
+                        <table class="w-full text-left border-collapse min-w-[700px] relative">
+                            <thead class="sticky top-0 bg-[#151521] shadow-md z-10">
+                                <tr class="text-gray-400 text-xs md:text-sm">
+                                    <th class="p-4 border-b border-gray-700">Nom & Prénom</th>
+                                    <th class="p-4 border-b border-gray-700">Date d'abonnement</th>
+                                    <th class="p-4 border-b border-gray-700">Appareil</th>
+                                    <th class="p-4 border-b border-gray-700">Plan</th>
+                                    <th class="p-4 border-b border-gray-700">Statut</th>
+                                </tr>
+                            </thead>
+                            <tbody id="subscribers-list" class="text-sm"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VUE : MENACES -->
+            <div id="view-menaces" class="admin-view p-4 md:p-8 overflow-hidden">
+                <div class="flex justify-between items-end mb-6">
+                    <div>
+                        <h1 class="text-2xl md:text-3xl font-bold">Menaces Détectées</h1>
+                        <p class="text-gray-400 mt-1">Historique des virus, adwares et réseaux risqués bloqués</p>
+                    </div>
+                    <button class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded font-bold text-sm hidden md:block">Purger l'historique</button>
+                </div>
+                
+                <div class="bg-[#27293d] rounded-xl border border-gray-700 flex flex-col flex-1 overflow-hidden">
+                    <div class="overflow-x-auto overflow-y-auto custom-scrollbar h-full">
+                        <table class="w-full text-left border-collapse min-w-[800px] relative">
+                            <thead class="sticky top-0 bg-[#151521] shadow-md z-10">
+                                <tr class="text-gray-400 text-xs md:text-sm">
+                                    <th class="p-4 border-b border-gray-700">ID Alerte</th>
+                                    <th class="p-4 border-b border-gray-700">Utilisateur</th>
+                                    <th class="p-4 border-b border-gray-700">Type de Menace</th>
+                                    <th class="p-4 border-b border-gray-700">Source / Application</th>
+                                    <th class="p-4 border-b border-gray-700">Date & Heure</th>
+                                    <th class="p-4 border-b border-gray-700">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody class="text-sm">
+                                <tr class="border-b border-gray-700 hover:bg-gray-800">
+                                    <td class="p-4 font-mono text-xs text-gray-400">#ALT-9012</td>
+                                    <td class="p-4">#USR-8492</td>
+                                    <td class="p-4 text-red-400"><i class="fa-solid fa-bug mr-2"></i>Trojan.AndroidOS.Generic</td>
+                                    <td class="p-4 text-gray-300">com.unknown.downloader</td>
+                                    <td class="p-4 text-gray-400">Aujourd'hui, 14:32</td>
+                                    <td class="p-4"><span class="bg-green-900/50 text-green-400 px-3 py-1 rounded-full text-xs border border-green-800">Supprimé</span></td>
+                                </tr>
+                                <tr class="border-b border-gray-700 hover:bg-gray-800">
+                                    <td class="p-4 font-mono text-xs text-gray-400">#ALT-9011</td>
+                                    <td class="p-4">#USR-1102</td>
+                                    <td class="p-4 text-yellow-400"><i class="fa-solid fa-ad mr-2"></i>Adware.Invasif.Pop</td>
+                                    <td class="p-4 text-gray-300">com.mymusic.player</td>
+                                    <td class="p-4 text-gray-400">Aujourd'hui, 11:05</td>
+                                    <td class="p-4"><span class="bg-yellow-900/50 text-yellow-400 px-3 py-1 rounded-full text-xs border border-yellow-800">Bloqué</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VUE : SUPPORT -->
+            <div id="view-support" class="admin-view p-4 md:p-8 overflow-hidden">
+                <div class="flex justify-between items-end mb-6">
+                    <div>
+                        <h1 class="text-2xl md:text-3xl font-bold">Support & Réclamations</h1>
+                        <p class="text-red-400 mt-1"><i class="fa-solid fa-triangle-exclamation mr-2"></i>Alerte : Pic de 50 plaintes détecté aujourd'hui</p>
+                    </div>
+                    <button class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded font-bold text-sm hidden md:block">Marquer tout comme lu</button>
+                </div>
+                
+                <div class="bg-[#27293d] rounded-xl border border-gray-700 flex flex-col flex-1 overflow-hidden">
+                    <div class="overflow-x-auto overflow-y-auto custom-scrollbar h-full">
+                        <table class="w-full text-left border-collapse min-w-[800px] relative">
+                            <thead class="sticky top-0 bg-[#151521] shadow-md z-10">
+                                <tr class="text-gray-400 text-xs md:text-sm">
+                                    <th class="p-4 border-b border-gray-700 w-[20%]">Utilisateur (Pro)</th>
+                                    <th class="p-4 border-b border-gray-700 w-[15%]">Date & Heure</th>
+                                    <th class="p-4 border-b border-gray-700 w-[55%]">Message</th>
+                                    <th class="p-4 border-b border-gray-700 w-[10%]">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="support-list" class="text-sm"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VUE : PARAMÈTRES -->
+            <div id="view-settings" class="admin-view p-4 md:p-8 overflow-y-auto custom-scrollbar">
+                <h1 class="text-2xl md:text-3xl font-bold mb-6">Paramètres de l'Application</h1>
+                <div class="max-w-4xl space-y-6 pb-10">
+                    <div class="bg-[#27293d] p-6 rounded-xl border border-gray-700">
+                        <h2 class="text-xl font-bold text-[var(--accent-cyan)] mb-4 border-b border-gray-700 pb-2"><i class="fa-solid fa-shield-halved mr-2"></i>Configuration du Scanner</h2>
+                        <div class="flex items-center justify-between py-4 border-b border-gray-700">
+                            <div>
+                                <h3 class="font-medium text-white">Scan Automatique Quotidien</h3>
+                                <p class="text-xs text-gray-400 mt-1">Lancer une analyse en arrière-plan tous les jours.</p>
+                            </div>
+                            <div class="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
+                                <input type="checkbox" name="toggle1" id="toggle1" checked class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 border-[#151521] appearance-none cursor-pointer transition-colors duration-200 ease-in-out z-10"/>
+                                <label for="toggle1" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-600 cursor-pointer"></label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // PWA - Enregistrement du Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(registration => console.log('ServiceWorker enregistré avec succès: ', registration.scope))
+                    .catch(err => console.log('Échec de l\'enregistrement du ServiceWorker: ', err));
+            });
+        }
+
+        // Navigation mobile
+        function switchTab(tabId, element) {
+            document.querySelectorAll('.screen').forEach(screen => screen.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+            document.getElementById('screen-' + tabId).classList.add('active');
+            element.classList.add('active');
+        }
+
+        // Navigation Admin
+        function switchAdminView(viewId, element) {
+            document.querySelectorAll('.admin-view').forEach(view => view.classList.remove('active'));
+            document.querySelectorAll('.admin-menu-item').forEach(item => {
+                item.classList.remove('text-[var(--accent-cyan)]');
+                item.classList.add('text-gray-400');
+            });
+            document.getElementById('view-' + viewId).classList.add('active');
+            element.classList.add('text-[var(--accent-cyan)]');
+            element.classList.remove('text-gray-400');
+        }
+
+        // Bascule App <-> Admin
+        function toggleMode() {
+            const app = document.getElementById('app-container');
+            const admin = document.getElementById('admin-container');
+            const btn = document.querySelector('.mode-switcher');
+
+            if (app.style.display === 'none') {
+                app.style.display = 'flex';
+                admin.style.display = 'none';
+                btn.textContent = "Mode Admin";
+                btn.style.background = "rgba(0, 229, 255, 0.15)";
+            } else {
+                app.style.display = 'none';
+                admin.style.display = 'flex';
+                btn.textContent = "Mode Mobile";
+                btn.style.background = "rgba(255, 64, 129, 0.2)";
+                btn.style.borderColor = "var(--accent-pink)";
+                btn.style.color = "var(--accent-pink)";
+            }
+        }
+
+        // --- GÉNÉRATION DYNAMIQUE (Abonnés + Support) ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const prenoms = ["Lucas", "Emma", "Thomas", "Marie", "Hugo", "Laura", "Arthur", "Chloe", "Paul", "Alice", "Leo", "Julie", "Gabriel", "Sarah", "Raphael", "Camille", "Louis", "Anna", "Jules", "Clara", "Victor", "Elena", "Antoine", "Ines", "Maxime", "Lina", "John", "Mike", "Oliver", "Sophia"];
+            const noms = ["Martin", "Bernard", "Dubois", "Thomas", "Robert", "Richard", "Petit", "Durand", "Leroy", "Moreau", "Simon", "Laurent", "Lefebvre", "Michel", "Garcia", "David", "Bertrand", "Roux", "Vincent", "Smith", "Johnson", "Williams", "Brown", "Jones", "Miller"];
+            const appareils = ["iPhone 14 Pro", "iPhone 13", "Samsung Galaxy S23", "Samsung Galaxy S22", "Google Pixel 7", "Xiaomi 13 Pro", "OnePlus 11", "Oppo Find X5", "iPhone 15 Pro Max"];
+            
+            // 1. Génération des 422 Abonnés
+            const tbodySubscribers = document.getElementById('subscribers-list');
+            let htmlSubscribers = "";
+            for (let i = 0; i < 422; i++) {
+                const prenom = prenoms[Math.floor(Math.random() * prenoms.length)];
+                const nom = noms[Math.floor(Math.random() * noms.length)];
+                const appareil = appareils[Math.floor(Math.random() * appareils.length)];
+                const date = new Date();
+                date.setDate(date.getDate() - Math.floor(Math.random() * 180));
+                const dateAbo = date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                const initiales = prenom.charAt(0) + nom.charAt(0);
+
+                htmlSubscribers += `
+                    <tr class="border-b border-gray-700 hover:bg-gray-800 transition-colors">
+                        <td class="p-4 flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-xs font-bold text-[var(--accent-cyan)]">${initiales}</div>
+                            <span class="font-medium">${prenom} ${nom}</span>
+                        </td>
+                        <td class="p-4 text-gray-300">${dateAbo}</td>
+                        <td class="p-4 text-gray-300"><i class="fa-solid fa-mobile-screen text-gray-500 mr-2"></i>${appareil}</td>
+                        <td class="p-4"><span class="text-yellow-500 font-bold">40 € / mois</span></td>
+                        <td class="p-4"><span class="bg-green-900/50 text-green-400 px-3 py-1 rounded-full text-xs border border-green-800">Actif</span></td>
+                    </tr>
+                `;
+            }
+            tbodySubscribers.innerHTML = htmlSubscribers;
+
+            // 2. Génération des 50 messages de Support (Plaintes)
+            const complaintsFR = [
+                "Pourquoi l'application ne marche pas aujourd'hui ?? Je paie pour rien !",
+                "C'est une arnaque, on paie 40€ pour que vous coupiez le service délibérément...",
+                "L'application refuse de s'ouvrir depuis ce matin. Pourquoi ?",
+                "Vous êtes des voleurs ! On paye le prix fort et vous coupez l'accès. Remboursement !",
+                "Grosse arnaque, le scanner ne marche plus du tout aujourd'hui. Réglez ça vite.",
+                "Pourquoi le service est coupé ? C'est une arnaque totale votre truc.",
+                "Plus rien ne fonctionne aujourd'hui, vous encaissez l'argent et vous fermez les serveurs ?"
+            ];
+            const complaintsEN = [
+                "Why is the app not working today? I demand a refund.",
+                "This is a total scam. We pay 40 euros just for you to cut the service...",
+                "The app has been down all day. Why are you taking our money for a broken app?",
+                "Scam alert! You charge us monthly and then shut down the servers today.",
+                "Nothing is working. Fix this immediately or I am reporting this scam.",
+                "Why did you cut the service? I paid for a premium app, not a scam.",
+                "App crashes on launch today. Are you guys running away with our money?"
+            ];
+
+            const tbodySupport = document.getElementById('support-list');
+            let htmlSupport = "";
+            for (let i = 0; i < 50; i++) {
+                const prenom = prenoms[Math.floor(Math.random() * prenoms.length)];
+                const nom = noms[Math.floor(Math.random() * noms.length)];
+                const isFrench = Math.random() > 0.4;
+                const msg = isFrench ? complaintsFR[Math.floor(Math.random() * complaintsFR.length)] : complaintsEN[Math.floor(Math.random() * complaintsEN.length)];
+                
+                const hours = String(Math.floor(Math.random() * 24)).padStart(2, '0');
+                const minutes = String(Math.floor(Math.random() * 60)).padStart(2, '0');
+                const time = `Aujourd'hui, ${hours}:${minutes}`;
+                const initiales = prenom.charAt(0) + nom.charAt(0);
+
+                htmlSupport += `
+                    <tr class="border-b border-gray-700 hover:bg-red-900/20 transition-colors">
+                        <td class="p-4 flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-xs font-bold text-red-400">${initiales}</div>
+                            <span class="font-medium text-gray-200">${prenom} ${nom}</span>
+                        </td>
+                        <td class="p-4 text-gray-400 text-xs">${time}</td>
+                        <td class="p-4 text-gray-300 font-medium text-sm pr-6">${msg}</td>
+                        <td class="p-4">
+                            <button class="bg-[#151521] border border-gray-600 hover:border-red-500 text-gray-300 px-3 py-1.5 rounded text-xs transition-colors">Répondre</button>
+                        </td>
+                    </tr>
+                `;
+            }
+            tbodySupport.innerHTML = htmlSupport;
+        });
+    </script>
+</body>
+</html>
