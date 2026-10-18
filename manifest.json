@@ -1,0 +1,22 @@
+{
+    "name": "Geek Security",
+    "short_name": "GeekSec",
+    "description": "Protection Malware et Outils d'Administration",
+    "start_url": "./index.html",
+    "display": "standalone",
+    "background_color": "#121212",
+    "theme_color": "#00e5ff",
+    "orientation": "portrait",
+    "icons": [
+        {
+            "src": "icon88.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "icon88.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}
